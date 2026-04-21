@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency } from '../utils/formatters';
 import './ProjectCard.css';
 
 const ProjectCard = ({ project }) => {
@@ -12,10 +13,6 @@ const ProjectCard = ({ project }) => {
       COMPLETED: 'badge-success',
     };
     return badges[status] || 'badge-info';
-  };
-
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
   };
 
   return (

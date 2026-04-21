@@ -10,6 +10,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 import './AuditorDashboard.css';
 
 const AuditorDashboard = () => {
@@ -19,6 +20,7 @@ const AuditorDashboard = () => {
   const [myStats, setMyStats] = useState(null);
   const [pendingMilestones, setPendingMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDesc, setExpandedDesc] = useState({});
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -42,10 +44,6 @@ const AuditorDashboard = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
-  };
-
   if (loading) {
     return <LoadingSpinner message="Loading dashboard..." />;
   }
@@ -65,7 +63,6 @@ const AuditorDashboard = () => {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="stats-grid">
         <StatsCard
           title="Pending Reviews"
@@ -96,7 +93,6 @@ const AuditorDashboard = () => {
         />
       </div>
 
-      {/* Pending Table */}
       <div className="section">
         <div className="section-header">
           <h2>Pending Milestone Reviews</h2>
@@ -114,38 +110,61 @@ const AuditorDashboard = () => {
               <thead>
                 <tr>
                   <th>Title</th>
-                  <th>Project ID</th>
+                  <th>AI Score</th>
                   <th>Amount</th>
-                  <th>Created</th>
+                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
+
               <tbody>
                 {pendingMilestones.map((milestone) => (
                   <tr key={milestone.id}>
                     <td>
                       <strong>{milestone.title}</strong>
                       <p className="milestone-desc">
-                        {milestone.description}
+                        {expandedDesc[milestone.id]
+                          ? milestone.description
+                          : milestone.description?.slice(0, 120) + '...'}
+
+                        {milestone.description?.length > 120 && (
+                          <span
+                            className="read-more"
+                            onClick={() =>
+                              setExpandedDesc((prev) => ({
+                                ...prev,
+                                [milestone.id]: !prev[milestone.id]
+                              }))
+                            }
+                          >
+                            {expandedDesc[milestone.id] ? ' Show less' : ' Show more'}
+                          </span>
+                        )}
                       </p>
                     </td>
-                    <td>{milestone.project_id}</td>
+
+                    <td>
+                      <strong>
+                        {milestone.ai_score ?? '--'}%
+                      </strong>
+                    </td>
+
                     <td>
                       <strong>
                         {formatCurrency(milestone.requested_amount)}
                       </strong>
                     </td>
+
                     <td>
-                      {new Date(
-                        milestone.created_at
-                      ).toLocaleDateString()}
+                      <span className={`status-badge ${milestone.status.toLowerCase()}`}>
+                        {milestone.status}
+                      </span>
                     </td>
+
                     <td>
                       <button
                         className="btn btn-sm btn-primary"
-                        onClick={() =>
-                          navigate(`/milestones/review/${milestone.id}`)
-                        }
+                        onClick={() => navigate(`/milestones/review/${milestone.id}`)}
                       >
                         Review
                       </button>

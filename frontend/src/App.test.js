@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import App from './App';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+import LoadingSpinner from './components/LoadingSpinner';
+
+test('renders loading message', () => {
+  render(<LoadingSpinner message="Loading dashboard..." />);
+  expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
 });

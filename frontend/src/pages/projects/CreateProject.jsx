@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectsAPI } from '../../services/api';
+import { parseRuleList } from '../../utils/formatters';
 import './CreateProject.css';
 
 const CreateProject = () => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -12,6 +14,9 @@ const CreateProject = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [generatedRules, setGeneratedRules] = useState('');
+
+  const rulesList = parseRuleList(generatedRules);
 
   const handleChange = (e) => {
     setFormData({
@@ -32,9 +37,13 @@ const CreateProject = () => {
         budget: parseFloat(formData.budget),
       };
 
-      await projectsAPI.create(projectData);
-      alert('Project created successfully! 🎉');
-      navigate('/dashboard');
+      const res = await projectsAPI.create(projectData);
+      const rules =
+        res.data?.compliance_rules ||
+        res.data?.project?.compliance_rules;
+
+      setGeneratedRules(rules || '');
+      alert('Project created successfully.');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create project');
     } finally {
@@ -46,7 +55,7 @@ const CreateProject = () => {
     <div className="create-project-page">
       <div className="page-header">
         <button className="btn btn-outline" onClick={() => navigate(-1)}>
-          ← Back
+          Back
         </button>
         <h1>Create New Project</h1>
       </div>
@@ -55,7 +64,7 @@ const CreateProject = () => {
         <form onSubmit={handleSubmit} className="project-form">
           {error && (
             <div className="error-banner">
-              <span>❌</span>
+              <span>Error</span>
               <p>{error}</p>
             </div>
           )}
@@ -86,7 +95,7 @@ const CreateProject = () => {
           </div>
 
           <div className="form-group">
-            <label>Budget (₹) *</label>
+            <label>Budget (Rs.) *</label>
             <input
               type="number"
               name="budget"
@@ -109,20 +118,39 @@ const CreateProject = () => {
             >
               Cancel
             </button>
+
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Creating...' : '✓ Create Project'}
+              {loading ? 'Creating...' : 'Create Project'}
             </button>
           </div>
         </form>
 
+        {rulesList.length > 0 && (
+          <div className="ai-rules-card">
+            <div className="ai-header">
+              <h3>AI Generated Compliance</h3>
+              <span className="ai-badge">Smart Rules</span>
+            </div>
+
+            <div className="rules-list">
+              {rulesList.map((rule, i) => (
+                <div key={i} className="rule-item">
+                  <span className="rule-icon">{i + 1}</span>
+                  <p>{rule}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="info-card">
-          <h3>💡 Project Creation Tips</h3>
+          <h3>Project Creation Tips</h3>
           <ul>
             <li>Choose a clear, descriptive project name</li>
             <li>Provide detailed objectives and scope</li>
             <li>Set a realistic budget allocation</li>
             <li>Projects start with "CREATED" status</li>
-            <li>Contractors can create milestones once approved</li>
+            <li>AI will generate compliance rules automatically</li>
           </ul>
         </div>
       </div>

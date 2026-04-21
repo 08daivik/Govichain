@@ -1,54 +1,101 @@
+from datetime import datetime
+from decimal import Decimal
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from ..auth import get_current_user
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import func
 from ..database import get_db
-from ..models import (
-    Milestone,
-    Project,
-    ProjectStatus,
-    User,
-    UserRole,
-    MilestoneStatus
-)
+from ..models import Milestone, MilestoneStatus, Project, ProjectStatus, User, UserRole
 from ..schemas import MilestoneCreate, MilestoneResponse
-from ..auth import get_current_user
+from ..services.ai_engine import evaluate_milestone
 from ..utils.rbac import require_role
 
 router = APIRouter(prefix="/milestones", tags=["Milestones"])
 
 
-# =========================================================
-# CREATE MILESTONE
-# =========================================================
-@router.post("/", response_model=MilestoneResponse, status_code=status.HTTP_201_CREATED)
+def to_decimal(value: float | int | None) -> Decimal:
+    return Decimal(str(value or 0))
+
+
+def refresh_project_status(project: Project, db: Session) -> None:
+    milestones = db.query(Milestone).filter(Milestone.project_id == project.id).all()
+
+    if not milestones:
+        project.status = ProjectStatus.CREATED
+        return
+
+    approved_amount = sum((
+        to_decimal(item.requested_amount)
+        for item in milestones
+        if item.status == MilestoneStatus.APPROVED
+    ), Decimal("0"))
+    pending_count = sum(1 for item in milestones if item.status == MilestoneStatus.PENDING)
+    flagged_count = sum(1 for item in milestones if item.status == MilestoneStatus.FLAGGED)
+
+    if (
+        approved_amount >= to_decimal(project.budget)
+        and pending_count == 0
+        and flagged_count == 0
+    ):
+        project.status = ProjectStatus.COMPLETED
+    else:
+        project.status = ProjectStatus.IN_PROGRESS
+
+
+@router.post("/evaluate")
+def evaluate(data: dict):
+    rules = data.get("rules")
+    milestone = data.get("milestone")
+    if not rules or not milestone:
+        raise HTTPException(status_code=400, detail="Missing rules or milestone")
+    return evaluate_milestone(rules, milestone)
+
+
+@router.post("/", response_model=MilestoneResponse)
 def create_milestone(
     milestone: MilestoneCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Only CONTRACTOR users can create milestones"""
     require_role([UserRole.CONTRACTOR])(current_user)
 
     project = db.query(Project).filter(Project.id == milestone.project_id).first()
     if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not project.compliance_rules:
+        raise HTTPException(status_code=400, detail="No compliance rules defined")
+
+    total = db.query(func.sum(Milestone.requested_amount)).filter(
+        Milestone.project_id == milestone.project_id,
+        Milestone.status != MilestoneStatus.REJECTED
+    ).scalar() or 0
+
+    if to_decimal(total) + to_decimal(milestone.requested_amount) > to_decimal(project.budget):
+        raise HTTPException(status_code=400, detail="Budget exceeded")
+
+    ai_result = evaluate_milestone(
+        rules=project.compliance_rules,
+        milestone=milestone.description or ""
+    )
+
+    verdict = ai_result.get("verdict", "REVIEW")
+
+    if verdict == "REJECTED":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
+            status_code=400,
+            detail={"message": "Compliance failed", "ai": ai_result}
         )
 
-    total_requested = db.query(Milestone).filter(
-        Milestone.project_id == milestone.project_id
-    ).with_entities(Milestone.requested_amount).all()
-
-    total = sum(m[0] for m in total_requested) + milestone.requested_amount
-
-    if total > project.budget:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Total milestone amount (₹{total}) exceeds project budget (₹{project.budget})"
-        )
+    status_val = MilestoneStatus.PENDING
+    if verdict == "REVIEW":
+        status_val = MilestoneStatus.FLAGGED
 
     new_milestone = Milestone(
         project_id=milestone.project_id,
@@ -56,148 +103,110 @@ def create_milestone(
         description=milestone.description,
         requested_amount=milestone.requested_amount,
         contractor_id=current_user.id,
-        status=MilestoneStatus.PENDING
+        status=status_val,
+        ai_report=ai_result,
+        ai_score=ai_result.get("score", 0),
+        ai_flags=ai_result.get("flags", [])
     )
 
     db.add(new_milestone)
     db.commit()
     db.refresh(new_milestone)
-    if project.status == ProjectStatus.CREATED:
-        project.status = ProjectStatus.IN_PROGRESS
-        db.commit()
-        db.refresh(project)
-    
+
+    refresh_project_status(project, db)
+    db.commit()
+
     return new_milestone
 
 
-# =========================================================
-# GET MY MILESTONES (ROLE BASED)
-# =========================================================
 @router.get("/my-milestones", response_model=List[MilestoneResponse])
 def get_my_milestones(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get milestones based on user role"""
-    if current_user.role == UserRole.CONTRACTOR:
-        return db.query(Milestone).filter(
-            Milestone.contractor_id == current_user.id
-        ).all()
-
-    elif current_user.role == UserRole.AUDITOR:
-        return db.query(Milestone).filter(
-            Milestone.status == MilestoneStatus.PENDING
-        ).all()
-
-    return db.query(Milestone).all()
+    return db.query(Milestone).filter(
+        Milestone.contractor_id == current_user.id
+    ).order_by(Milestone.created_at.desc()).all()
 
 
-# =========================================================
-# FILTER MILESTONES BY STATUS
-# =========================================================
-@router.get("/filter/by-status", response_model=List[MilestoneResponse])
-def filter_milestones_by_status(
-    status: Optional[MilestoneStatus] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    query = db.query(Milestone)
-
-    if status:
-        query = query.filter(Milestone.status == status)
-
-    return query.all()
-
-
-# =========================================================
-# GET PROJECT MILESTONES
-# =========================================================
 @router.get("/project/{project_id}", response_model=List[MilestoneResponse])
 def get_project_milestones(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     return db.query(Milestone).filter(
         Milestone.project_id == project_id
-    ).all()
+    ).order_by(Milestone.created_at.desc()).all()
 
 
-# =========================================================
-# GET MILESTONE BY ID
-# =========================================================
+@router.get("/filter/by-status", response_model=List[MilestoneResponse])
+def filter_by_status(
+    status: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    require_role([UserRole.AUDITOR])(current_user)
+    normalized_status = status.upper()
+
+    if normalized_status == "PENDING":
+        statuses = [MilestoneStatus.PENDING, MilestoneStatus.FLAGGED]
+    else:
+        try:
+            statuses = [MilestoneStatus(normalized_status)]
+        except ValueError as exc:
+            valid_statuses = ", ".join(item.value for item in MilestoneStatus)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{status}'. Use one of: {valid_statuses}"
+            ) from exc
+
+    return db.query(Milestone).filter(
+        Milestone.status.in_(statuses)
+    ).order_by(Milestone.created_at.desc()).all()
+
+
 @router.get("/{milestone_id}", response_model=MilestoneResponse)
 def get_milestone(
     milestone_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    milestone = db.query(Milestone).filter(
-        Milestone.id == milestone_id
-    ).first()
-
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
     if not milestone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Milestone not found"
-        )
-
+        raise HTTPException(status_code=404, detail="Milestone not found")
     return milestone
 
 
-# =========================================================
-# APPROVE MILESTONE (AUDITOR)
-# =========================================================
 @router.put("/{milestone_id}/approve", response_model=MilestoneResponse)
 def approve_milestone(
     milestone_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Only AUDITOR users can approve milestones"""
     require_role([UserRole.AUDITOR])(current_user)
-    
+
     milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
-    
     if not milestone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Milestone not found"
-        )
-    
-    if milestone.status != MilestoneStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Milestone is already {milestone.status.value}"
-        )
-    
+        raise HTTPException(status_code=404, detail="Milestone not found")
+
+    if milestone.status == MilestoneStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="Milestone already approved")
+    if milestone.status == MilestoneStatus.REJECTED:
+        raise HTTPException(status_code=400, detail="Rejected milestone cannot be approved")
+
     milestone.status = MilestoneStatus.APPROVED
     milestone.auditor_id = current_user.id
     milestone.approved_at = datetime.utcnow()
-    
+    refresh_project_status(milestone.project, db)
     db.commit()
     db.refresh(milestone)
-  
-    project = db.query(Project).filter(Project.id == milestone.project_id).first()
-    
-    if project and project.status != ProjectStatus.COMPLETED:
-        # Calculate total approved amount
-        total_approved = db.query(func.sum(Milestone.requested_amount)).filter(
-            Milestone.project_id == milestone.project_id,
-            Milestone.status == MilestoneStatus.APPROVED
-        ).scalar() or 0
-        
-        # If total approved amount equals or exceeds budget, mark as completed
-        if total_approved >= project.budget:
-            project.status = ProjectStatus.COMPLETED
-            db.commit()
-    
     return milestone
 
 
-# =========================================================
-# FLAG MILESTONE (AUDITOR)
-# =========================================================
 @router.put("/{milestone_id}/flag", response_model=MilestoneResponse)
 def flag_milestone(
     milestone_id: int,
@@ -206,23 +215,45 @@ def flag_milestone(
 ):
     require_role([UserRole.AUDITOR])(current_user)
 
-    milestone = db.query(Milestone).filter(
-        Milestone.id == milestone_id
-    ).first()
-
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
-
-    if milestone.status != MilestoneStatus.PENDING:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Milestone is already {milestone.status.value}"
-        )
+    if milestone.status == MilestoneStatus.FLAGGED:
+        raise HTTPException(status_code=400, detail="Milestone already flagged")
+    if milestone.status == MilestoneStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="Approved milestone cannot be flagged")
+    if milestone.status == MilestoneStatus.REJECTED:
+        raise HTTPException(status_code=400, detail="Rejected milestone cannot be flagged")
 
     milestone.status = MilestoneStatus.FLAGGED
     milestone.auditor_id = current_user.id
-
+    milestone.approved_at = None
+    refresh_project_status(milestone.project, db)
     db.commit()
     db.refresh(milestone)
+    return milestone
 
+
+@router.put("/{milestone_id}/reject", response_model=MilestoneResponse)
+def reject_milestone(
+    milestone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    require_role([UserRole.AUDITOR])(current_user)
+
+    milestone = db.query(Milestone).filter(Milestone.id == milestone_id).first()
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if milestone.status == MilestoneStatus.REJECTED:
+        raise HTTPException(status_code=400, detail="Milestone already rejected")
+    if milestone.status == MilestoneStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="Approved milestone cannot be rejected")
+
+    milestone.status = MilestoneStatus.REJECTED
+    milestone.auditor_id = current_user.id
+    milestone.approved_at = None
+    refresh_project_status(milestone.project, db)
+    db.commit()
+    db.refresh(milestone)
     return milestone

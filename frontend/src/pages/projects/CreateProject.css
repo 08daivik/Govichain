@@ -136,7 +136,7 @@
 }
 
 .info-card li::before {
-  content: "✓";
+  content: ">";
   color: #3b82f6;
   font-weight: 600;
   font-size: 14px;
@@ -146,6 +146,70 @@
 .info-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.1);
+}
+
+.ai-rules-box {
+  margin-top: 20px;
+  padding: 15px;
+  background: #eef6ff;
+  border-radius: 10px;
+  border: 1px solid #cce0ff;
+}
+
+.ai-rules-card {
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px;
+  margin-top: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+}
+
+.ai-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ai-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ai-badge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #6366f1;
+  color: white;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.rule-item:hover {
+  transform: translateX(4px);
+  background: #f1f5f9;
+}
+
+.rule-icon {
+  color: #22c55e;
+  font-weight: bold;
 }
 
 @media (max-width: 968px) {

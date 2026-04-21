@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { projectsAPI, milestonesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import AIReportCard from '../../components/AIReportCard';
+import { formatCurrency, parseRuleList } from '../../utils/formatters';
 import './ProjectDetails.css';
 
 const ProjectDetails = () => {
@@ -14,10 +16,13 @@ const ProjectDetails = () => {
   const [progress, setProgress] = useState(null);
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedMilestone, setExpandedMilestone] = useState(null);
+  const [expandedDesc, setExpandedDesc] = useState({});
 
   const loadProjectDetails = useCallback(async () => {
     try {
       setLoading(true);
+
       const [projectRes, progressRes, milestonesRes] = await Promise.all([
         projectsAPI.getById(id),
         projectsAPI.getProgress(id),
@@ -46,32 +51,28 @@ const ProjectDetails = () => {
       PENDING: 'badge-warning',
       APPROVED: 'badge-success',
       FLAGGED: 'badge-danger',
+      REJECTED: 'badge-danger',
     };
     return badges[status] || 'badge-info';
   };
 
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
-  };
+  const projectRules = parseRuleList(project?.compliance_rules);
+  const totalMilestones = progress?.milestones?.total || 0;
+  const approvedMilestones = progress?.milestones?.approved || 0;
+  const pendingMilestones = progress?.milestones?.pending || 0;
+  const flaggedMilestones = progress?.milestones?.flagged || 0;
+  const rejectedMilestones = progress?.milestones?.rejected || 0;
 
-  if (loading) {
-    return <LoadingSpinner message="Loading project details..." />;
-  }
-
-  if (!project) {
-    return <div>Project not found</div>;
-  }
+  if (loading) return <LoadingSpinner message="Loading project details..." />;
+  if (!project) return <div>Project not found</div>;
 
   return (
     <div className="project-details-page">
       <div className="page-header">
-        <button className="btn btn-outline" onClick={() => navigate(-1)}>
-          ← Back
-        </button>
+        <button className="btn btn-outline" onClick={() => navigate(-1)}>Back</button>
         <h1>{project.name}</h1>
       </div>
 
-      {/* Project Info Card */}
       <div className="project-info-card card">
         <div className="project-header">
           <div>
@@ -80,143 +81,244 @@ const ProjectDetails = () => {
               {project.status.replace('_', ' ')}
             </span>
           </div>
-          <div className="project-budget-large">
-            {formatCurrency(project.budget)}
-          </div>
+          <div className="project-budget-large">{formatCurrency(project.budget)}</div>
         </div>
 
-        <p className="project-description">{project.description || 'No description provided'}</p>
-
-        <div className="project-meta">
-          <div className="meta-item">
-            <span className="label">Created:</span>
-            <span className="value">{new Date(project.created_at).toLocaleDateString()}</span>
-          </div>
-          <div className="meta-item">
-            <span className="label">Last Updated:</span>
-            <span className="value">{new Date(project.updated_at).toLocaleDateString()}</span>
-          </div>
-        </div>
+        <p className="project-description">
+          {project.description || 'No description provided'}
+        </p>
       </div>
 
-      {/* Progress Section */}
+      {projectRules.length > 0 && (
+        <div className="ai-rules-card">
+          <div className="ai-header">
+            <h3>AI Compliance Rules</h3>
+            <span className="ai-badge">AI Generated</span>
+          </div>
+
+          <div className="rules-list">
+            {projectRules.map((rule, i) => (
+              <div key={i} className="rule-item">
+                <span className="rule-icon">{i + 1}</span>
+                <p>{rule}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {progress && (
         <div className="progress-section">
           <div className="progress-card card">
             <h3>Project Progress</h3>
-            <div className="progress-bar-container">
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${progress.progress.completion_percentage}%` }}
-                >
-                  {progress.progress.completion_percentage}%
+
+            {totalMilestones > 0 ? (
+              <>
+                <div className="progress-bar-container">
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${progress.progress.completion_percentage}%` }}
+                    >
+                      {progress.progress.completion_percentage}%
+                    </div>
+                  </div>
                 </div>
+
+                <div className="progress-stats">
+                  <div className="stat">
+                    <span className="stat-value">{approvedMilestones}</span>
+                    <span className="stat-label">Approved</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">{pendingMilestones + flaggedMilestones}</span>
+                    <span className="stat-label">Under Review</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">{rejectedMilestones}</span>
+                    <span className="stat-label">Rejected</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">{totalMilestones}</span>
+                    <span className="stat-label">Total</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="progress-empty-state">
+                <strong>No milestones submitted yet.</strong>
+                <p>Progress will update once milestones are created and reviewed.</p>
               </div>
-            </div>
-            <div className="progress-stats">
-              <div className="stat">
-                <span className="stat-value">{progress.milestones.approved}</span>
-                <span className="stat-label">Approved</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{progress.milestones.pending}</span>
-                <span className="stat-label">Pending</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{progress.milestones.flagged}</span>
-                <span className="stat-label">Flagged</span>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="budget-card card">
-            <h3>Budget Utilization</h3>
+            <h3>Budget Overview</h3>
             <div className="budget-stats">
               <div className="budget-item">
-                <span className="label">Total Budget:</span>
-                <span className="value">{formatCurrency(progress.funds.total_requested + progress.funds.remaining_budget)}</span>
+                <span className="label">Total Budget</span>
+                <span className="value">{formatCurrency(progress.funds.total_budget)}</span>
               </div>
               <div className="budget-item">
-                <span className="label">Requested:</span>
-                <span className="value">{formatCurrency(progress.funds.total_requested)}</span>
+                <span className="label">Reserved Budget</span>
+                <span className="value">{formatCurrency(progress.funds.reserved_amount)}</span>
               </div>
               <div className="budget-item">
-                <span className="label">Approved:</span>
-                <span className="value green">{formatCurrency(progress.funds.approved_amount)}</span>
+                <span className="label">Under Review</span>
+                <span className="value">{formatCurrency(progress.funds.under_review_amount)}</span>
               </div>
               <div className="budget-item">
-                <span className="label">Remaining:</span>
-                <span className="value">{formatCurrency(progress.funds.remaining_budget)}</span>
+                <span className="label">Approved</span>
+                <span className="value">{formatCurrency(progress.funds.approved_amount)}</span>
+              </div>
+              <div className="budget-item">
+                <span className="label">Available</span>
+                <span className="value green">{formatCurrency(progress.funds.available_budget)}</span>
               </div>
             </div>
             <div className="utilization-bar">
               <div
                 className="utilization-fill"
-                style={{ width: `${progress.progress.budget_utilization}%` }}
-              ></div>
+                style={{ width: `${Math.min(progress.progress.budget_utilization, 100)}%` }}
+              />
             </div>
-            <p className="utilization-text">{progress.progress.budget_utilization}% Utilized</p>
+            <div className="utilization-text">
+              Approved and under-review milestones reserve budget until explicitly rejected.
+            </div>
+            <div className="budget-caption">
+              Project completes automatically when approved budget reaches the total budget and no milestones are pending or flagged.
+            </div>
           </div>
         </div>
       )}
 
-      {/* Milestones Section */}
       <div className="milestones-section card">
         <div className="section-header">
           <h3>Milestones ({milestones.length})</h3>
+
           {user?.role === 'CONTRACTOR' && (
-            <button className="btn btn-primary" onClick={() => navigate('/milestones/create', { state: { projectId: id } })}>
-              ➕ Add Milestone
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate('/milestones/create', { state: { projectId: id } })}
+            >
+              Add Milestone
             </button>
           )}
         </div>
 
         {milestones.length > 0 ? (
-          <div className="milestones-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {milestones.map((milestone) => (
-                  <tr key={milestone.id}>
-                    <td>
-                      <strong>{milestone.title}</strong>
-                      <p className="milestone-desc">{milestone.description}</p>
-                    </td>
-                    <td>{formatCurrency(milestone.requested_amount)}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(milestone.status)}`}>
-                        {milestone.status}
-                      </span>
-                    </td>
-                    <td>{new Date(milestone.created_at).toLocaleDateString()}</td>
-                    <td>
-                      {user?.role === 'AUDITOR' && milestone.status === 'PENDING' && (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => navigate(`/milestones/review/${milestone.id}`)}
+          <div className="milestones-grid">
+            {milestones.map((milestone) => (
+              <div key={milestone.id} className="milestone-card">
+                <div className="milestone-top">
+                  <div>
+                    <h4>{milestone.title}</h4>
+                    <p className="milestone-desc">
+                      {expandedDesc[milestone.id]
+                        ? milestone.description
+                        : milestone.description?.slice(0, 120) + '...'}
+
+                      {milestone.description?.length > 120 && (
+                        <span
+                          className="read-more"
+                          onClick={() =>
+                            setExpandedDesc((prev) => ({
+                              ...prev,
+                              [milestone.id]: !prev[milestone.id]
+                            }))
+                          }
                         >
-                          Review
-                        </button>
+                          {expandedDesc[milestone.id] ? ' Show less' : ' Show more'}
+                        </span>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </p>
+                  </div>
+
+                  <div className="milestone-amount">
+                    {formatCurrency(milestone.requested_amount)}
+                  </div>
+                </div>
+
+                <div className="milestone-middle">
+                  {(() => {
+                    const currentScore = milestone.ai_score || 0;
+
+                    let colorClass = 'green';
+                    let verdictText = 'APPROVED';
+
+                    if (currentScore < 75 && currentScore >= 50) {
+                      colorClass = 'yellow';
+                      verdictText = 'REVIEW';
+                    } else if (currentScore < 50) {
+                      colorClass = 'red';
+                      verdictText = 'REJECTED';
+                    }
+
+                    return (
+                      <div className={`fancy-score ${colorClass}`}>
+                        <div className="circle-wrapper">
+                          <svg className="progress-ring" width="70" height="70">
+                            <circle
+                              className="progress-bg"
+                              cx="35"
+                              cy="35"
+                              r="30"
+                            />
+                            <circle
+                              className="progress-bar"
+                              cx="35"
+                              cy="35"
+                              r="30"
+                              style={{
+                                strokeDasharray: 2 * Math.PI * 30,
+                                strokeDashoffset:
+                                  2 * Math.PI * 30 * (1 - (currentScore / 100))
+                              }}
+                            />
+                          </svg>
+
+                          <div className="circle-text">
+                            {Math.round(currentScore)}%
+                          </div>
+                        </div>
+                        <p className="score-label">Compliance</p>
+                        <p className="score-verdict">{verdictText}</p>
+                      </div>
+                    );
+                  })()}
+
+                  <span className={`status-pill ${milestone.status.toLowerCase()}`}>
+                    {milestone.status}
+                  </span>
+
+                  {milestone.ai_report && (
+                    <button
+                      className="btn btn-outline"
+                      onClick={() =>
+                        setExpandedMilestone(
+                          expandedMilestone === milestone.id ? null : milestone.id
+                        )
+                      }
+                    >
+                      AI Report
+                    </button>
+                  )}
+                </div>
+
+                {expandedMilestone === milestone.id && (
+                  <div className="ai-expanded">
+                    <AIReportCard
+                      report={milestone.ai_report}
+                      score={milestone.ai_score}
+                      flags={milestone.ai_flags}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="empty-state-small">
-            <p>No milestones yet for this project</p>
-          </div>
+          <p>No milestones yet</p>
         )}
       </div>
     </div>

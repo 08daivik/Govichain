@@ -10,6 +10,7 @@ import {
   Clock,
   IndianRupee
 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 import './ContractorDashboard.css';
 
 const ContractorDashboard = () => {
@@ -19,6 +20,7 @@ const ContractorDashboard = () => {
   const [myStats, setMyStats] = useState(null);
   const [recentMilestones, setRecentMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDesc, setExpandedDesc] = useState({});
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -42,15 +44,12 @@ const ContractorDashboard = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
-  };
-
   const getStatusBadge = (status) => {
     const badges = {
       PENDING: 'badge-warning',
       APPROVED: 'badge-success',
       FLAGGED: 'badge-danger',
+      REJECTED: 'badge-danger',
     };
     return badges[status] || 'badge-info';
   };
@@ -74,7 +73,6 @@ const ContractorDashboard = () => {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="stats-grid">
         <StatsCard
           title="Total Milestones"
@@ -105,7 +103,6 @@ const ContractorDashboard = () => {
         />
       </div>
 
-      {/* Table */}
       <div className="section">
         <div className="section-header">
           <h2>Recent Milestones</h2>
@@ -134,25 +131,35 @@ const ContractorDashboard = () => {
                     <td>
                       <strong>{milestone.title}</strong>
                       <p className="milestone-desc">
-                        {milestone.description}
+                        {expandedDesc[milestone.id]
+                          ? milestone.description
+                          : milestone.description?.slice(0, 100) + '...'}
+
+                        {milestone.description?.length > 100 && (
+                          <span
+                            className="read-more"
+                            onClick={() =>
+                              setExpandedDesc((prev) => ({
+                                ...prev,
+                                [milestone.id]: !prev[milestone.id]
+                              }))
+                            }
+                          >
+                            {expandedDesc[milestone.id] ? ' Show less' : ' Show more'}
+                          </span>
+                        )}
                       </p>
                     </td>
                     <td>
                       {formatCurrency(milestone.requested_amount)}
                     </td>
                     <td>
-                      <span
-                        className={`badge ${getStatusBadge(
-                          milestone.status
-                        )}`}
-                      >
+                      <span className={`badge ${getStatusBadge(milestone.status)}`}>
                         {milestone.status}
                       </span>
                     </td>
                     <td>
-                      {new Date(
-                        milestone.created_at
-                      ).toLocaleDateString()}
+                      {new Date(milestone.created_at).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}

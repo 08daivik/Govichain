@@ -1,11 +1,196 @@
-.create-milestone-page {
-  max-width: 1200px;
-  margin: 0 auto;
+.form-container {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
 }
 
 .milestone-form {
-  background: var(--card-bg);
+  background: white;
+  padding: 20px;
   border-radius: 12px;
-  padding: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ai-card {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.rule-chip {
+  background: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.description-box {
+  position: relative;
+}
+
+.description-box textarea {
+  width: 100%;
+  padding-right: 100px;
+}
+
+.ai-check-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.ai-score-big {
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.verdict {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.verdict.approved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.verdict.review {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.verdict.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.ai-result-inline {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border: 1px solid #e2e8f0;
+}
+
+/* Header */
+.ai-result-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-title {
+  font-weight: 600;
+}
+
+/* Score + Summary */
+.ai-score-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+/* SCORE CIRCLE (BIG & CLEAN) */
+.ai-score-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+}
+
+/* Summary */
+.ai-summary {
+  color: #475569;
+  font-size: 14px;
+}
+
+/* Issues */
+.ai-issues-modern {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.issue-item {
+  background: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* Verdict */
+.verdict-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.verdict-badge.approved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.verdict-badge.review {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.verdict-badge.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-secondary {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+}
+
+.btn-primary.big {
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-primary.big:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
 }

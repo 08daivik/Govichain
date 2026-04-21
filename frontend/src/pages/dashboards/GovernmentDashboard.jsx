@@ -19,6 +19,7 @@ import {
   Cell
 } from 'recharts';
 import { Folder, ClipboardList, IndianRupee, Clock } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 import './GovernmentDashboard.css';
 
 const GovernmentDashboard = () => {
@@ -57,17 +58,12 @@ const GovernmentDashboard = () => {
     return <LoadingSpinner message="Loading dashboard..." />;
   }
 
-  // -------- DATA PREP --------
-
   const totalAllocated = stats?.budget?.total_allocated || 0;
   const totalRequested = stats?.budget?.total_requested || 0;
   const totalApproved = stats?.budget?.total_approved || 0;
-
-  const budgetUtilization =
-    totalAllocated > 0 ? ((totalApproved / totalAllocated) * 100).toFixed(1) : 0;
-
+  const budgetUtilization = Number(stats?.budget?.utilization_percentage || 0).toFixed(1);
   const approvalRate =
-    totalRequested > 0 ? ((totalApproved / totalRequested) * 100).toFixed(1) : 0;
+    totalRequested > 0 ? ((totalApproved / totalRequested) * 100).toFixed(1) : '0.0';
 
   const projectStatusData = stats?.project_status
     ? Object.entries(stats.project_status)
@@ -91,8 +87,6 @@ const GovernmentDashboard = () => {
 
   return (
     <div className="dashboard">
-
-      {/* HEADER */}
       <div className="dashboard-header">
         <div>
           <h1>Welcome back, {user?.username}.</h1>
@@ -106,7 +100,6 @@ const GovernmentDashboard = () => {
         </button>
       </div>
 
-      {/* STATS */}
       <div className="stats-grid">
         <StatsCard
           title="Total Projects"
@@ -120,8 +113,8 @@ const GovernmentDashboard = () => {
         />
         <StatsCard
           title="Total Allocated"
-          value={`₹${(totalAllocated / 10000000).toFixed(2)} Cr`}
-          subtitle={`₹${totalAllocated.toLocaleString('en-IN')}`}
+          value={`Rs. ${(totalAllocated / 10000000).toFixed(2)} Cr`}
+          subtitle={formatCurrency(totalAllocated)}
           icon={<IndianRupee size={28} />}
         />
         <StatsCard
@@ -131,63 +124,48 @@ const GovernmentDashboard = () => {
         />
       </div>
 
-      {/* HEALTH + DONUT */}
       <div className="dual-section">
-
         <div className="health-card">
-        <h3>Project Health</h3>
+          <h3>Project Health</h3>
 
-        <div className="health-top">
-          <div className="health-main-metric">
-            <span className="health-percent">
-              {((stats?.budget?.total_approved || 0) / 
-                (stats?.budget?.total_allocated || 1) * 100).toFixed(1)}%
-            </span>
-            <span className="health-label">Budget Utilized</span>
+          <div className="health-top">
+            <div className="health-main-metric">
+              <span className="health-percent">{budgetUtilization}%</span>
+              <span className="health-label">Budget Utilized</span>
+            </div>
+          </div>
+
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{
+                width: `${Math.min(Number(budgetUtilization), 100)}%`,
+              }}
+            />
+          </div>
+
+          <div className="health-grid">
+            <div>
+              <span className="metric-label">Approved</span>
+              <strong>
+                {formatCurrency(stats?.budget?.total_approved || 0)}
+              </strong>
+            </div>
+
+            <div>
+              <span className="metric-label">Requested</span>
+              <strong>
+                {formatCurrency(stats?.budget?.total_requested || 0)}
+              </strong>
+            </div>
+
+            <div>
+              <span className="metric-label">Approval Rate</span>
+              <strong>{approvalRate}%</strong>
+            </div>
           </div>
         </div>
 
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{
-              width: `${
-                ((stats?.budget?.total_approved || 0) /
-                  (stats?.budget?.total_allocated || 1)) *
-                100
-              }%`,
-            }}
-          />
-        </div>
-
-        <div className="health-grid">
-          <div>
-            <span className="metric-label">Approved</span>
-            <strong>
-              ₹{(stats?.budget?.total_approved || 0).toLocaleString("en-IN")}
-            </strong>
-          </div>
-
-          <div>
-            <span className="metric-label">Requested</span>
-            <strong>
-              ₹{(stats?.budget?.total_requested || 0).toLocaleString("en-IN")}
-            </strong>
-          </div>
-
-          <div>
-            <span className="metric-label">Approval Rate</span>
-            <strong>
-              {(
-                ((stats?.budget?.total_approved || 0) /
-                  (stats?.budget?.total_requested || 1)) *
-                100
-              ).toFixed(1)}
-              %
-            </strong>
-          </div>
-        </div>
-      </div>
         <div className="chart-card">
           <h3>Project Status Distribution</h3>
           <ResponsiveContainer width="100%" height={260}>
@@ -212,9 +190,8 @@ const GovernmentDashboard = () => {
         </div>
       </div>
 
-      {/* BAR CHART */}
       <div className="chart-card">
-        <h3>Budget Overview (₹ Crores)</h3>
+        <h3>Budget Overview (Rs. Crores)</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={budgetData}
@@ -236,7 +213,6 @@ const GovernmentDashboard = () => {
         </div>
       </div>
 
-      {/* RECENT PROJECTS */}
       <div className="section">
         <div className="section-header">
           <h2>Recent Projects</h2>
@@ -254,7 +230,6 @@ const GovernmentDashboard = () => {
           ))}
         </div>
       </div>
-
     </div>
   );
 };

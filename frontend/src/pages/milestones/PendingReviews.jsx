@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { milestonesAPI } from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { formatCurrency } from '../../utils/formatters';
 import './PendingReviews.css';
 
 const PendingReviews = () => {
   const navigate = useNavigate();
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDesc, setExpandedDesc] = useState({});
 
   useEffect(() => {
     loadPendingMilestones();
@@ -23,10 +25,6 @@ const PendingReviews = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
   };
 
   if (loading) {
@@ -45,27 +43,58 @@ const PendingReviews = () => {
           <table className="milestones-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Title</th>
-                <th>Project ID</th>
-                <th>Contractor</th>
+                <th>AI Score</th>
                 <th>Amount</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
+
             <tbody>
               {milestones.map((milestone) => (
                 <tr key={milestone.id}>
-                  <td>{milestone.id}</td>
                   <td>
                     <strong>{milestone.title}</strong>
-                    <p className="milestone-desc">{milestone.description}</p>
+                    <p className="milestone-desc">
+                      {expandedDesc[milestone.id]
+                        ? milestone.description
+                        : milestone.description?.slice(0, 120) + '...'}
+
+                      {milestone.description?.length > 120 && (
+                        <span
+                          className="read-more"
+                          onClick={() =>
+                            setExpandedDesc((prev) => ({
+                              ...prev,
+                              [milestone.id]: !prev[milestone.id]
+                            }))
+                          }
+                        >
+                          {expandedDesc[milestone.id] ? ' Show less' : ' Show more'}
+                        </span>
+                      )}
+                    </p>
                   </td>
-                  <td>{milestone.project_id}</td>
-                  <td>ID: {milestone.contractor_id}</td>
-                  <td><strong>{formatCurrency(milestone.requested_amount)}</strong></td>
-                  <td>{new Date(milestone.created_at).toLocaleDateString()}</td>
+
+                  <td>
+                    <strong>
+                      {milestone.ai_score ?? '--'}%
+                    </strong>
+                  </td>
+
+                  <td>
+                    <strong>
+                      {formatCurrency(milestone.requested_amount)}
+                    </strong>
+                  </td>
+
+                  <td>
+                    <span className={`status-badge ${milestone.status.toLowerCase()}`}>
+                      {milestone.status}
+                    </span>
+                  </td>
+
                   <td>
                     <button
                       className="btn btn-sm btn-primary"
@@ -81,7 +110,7 @@ const PendingReviews = () => {
         </div>
       ) : (
         <div className="empty-state">
-          <p>✅ No pending reviews at the moment</p>
+          <p>No pending reviews at the moment.</p>
         </div>
       )}
     </div>
