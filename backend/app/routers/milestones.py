@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from datetime import datetime
 from sqlalchemy import func
 from ..database import get_db
 from ..models import Milestone, MilestoneStatus, Project, ProjectStatus, User, UserRole
-from ..schemas import MilestoneCreate, MilestoneResponse
+from ..schemas import MilestoneChainAction, MilestoneCreate, MilestoneResponse
 from ..services.ai_engine import evaluate_milestone
 from ..utils.rbac import require_role
 
@@ -106,7 +106,15 @@ def create_milestone(
         status=status_val,
         ai_report=ai_result,
         ai_score=ai_result.get("score", 0),
-        ai_flags=ai_result.get("flags", [])
+        ai_flags=ai_result.get("flags", []),
+        wallet_address=milestone.wallet_address,
+        submission_tx_hash=milestone.submission_tx_hash,
+        chain_network=milestone.chain_network,
+        chain_id=milestone.chain_id,
+        chain_project_id=milestone.chain_project_id,
+        chain_milestone_id=milestone.chain_milestone_id,
+        contract_address=milestone.contract_address,
+        description_hash=milestone.description_hash,
     )
 
     db.add(new_milestone)
@@ -184,6 +192,7 @@ def get_milestone(
 @router.put("/{milestone_id}/approve", response_model=MilestoneResponse)
 def approve_milestone(
     milestone_id: int,
+    chain_action: MilestoneChainAction | None = Body(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -201,7 +210,18 @@ def approve_milestone(
     milestone.status = MilestoneStatus.APPROVED
     milestone.auditor_id = current_user.id
     milestone.approved_at = datetime.utcnow()
-    refresh_project_status(milestone.project, db)
+    if chain_action:
+        milestone.wallet_address = chain_action.wallet_address or milestone.wallet_address
+        milestone.review_tx_hash = chain_action.review_tx_hash or milestone.review_tx_hash
+        milestone.chain_network = chain_action.chain_network or milestone.chain_network
+        milestone.chain_id = chain_action.chain_id or milestone.chain_id
+        milestone.chain_project_id = chain_action.chain_project_id or milestone.chain_project_id
+        milestone.chain_milestone_id = chain_action.chain_milestone_id or milestone.chain_milestone_id
+        milestone.contract_address = chain_action.contract_address or milestone.contract_address
+    
+    # Query fresh project from DB instead of using lazy-loaded relationship
+    project = db.query(Project).filter(Project.id == milestone.project_id).first()
+    refresh_project_status(project, db)
     db.commit()
     db.refresh(milestone)
     return milestone
@@ -210,6 +230,7 @@ def approve_milestone(
 @router.put("/{milestone_id}/flag", response_model=MilestoneResponse)
 def flag_milestone(
     milestone_id: int,
+    chain_action: MilestoneChainAction | None = Body(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -228,7 +249,18 @@ def flag_milestone(
     milestone.status = MilestoneStatus.FLAGGED
     milestone.auditor_id = current_user.id
     milestone.approved_at = None
-    refresh_project_status(milestone.project, db)
+    if chain_action:
+        milestone.wallet_address = chain_action.wallet_address or milestone.wallet_address
+        milestone.review_tx_hash = chain_action.review_tx_hash or milestone.review_tx_hash
+        milestone.chain_network = chain_action.chain_network or milestone.chain_network
+        milestone.chain_id = chain_action.chain_id or milestone.chain_id
+        milestone.chain_project_id = chain_action.chain_project_id or milestone.chain_project_id
+        milestone.chain_milestone_id = chain_action.chain_milestone_id or milestone.chain_milestone_id
+        milestone.contract_address = chain_action.contract_address or milestone.contract_address
+    
+    # Query fresh project from DB instead of using lazy-loaded relationship
+    project = db.query(Project).filter(Project.id == milestone.project_id).first()
+    refresh_project_status(project, db)
     db.commit()
     db.refresh(milestone)
     return milestone
@@ -237,6 +269,7 @@ def flag_milestone(
 @router.put("/{milestone_id}/reject", response_model=MilestoneResponse)
 def reject_milestone(
     milestone_id: int,
+    chain_action: MilestoneChainAction | None = Body(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -253,7 +286,18 @@ def reject_milestone(
     milestone.status = MilestoneStatus.REJECTED
     milestone.auditor_id = current_user.id
     milestone.approved_at = None
-    refresh_project_status(milestone.project, db)
+    if chain_action:
+        milestone.wallet_address = chain_action.wallet_address or milestone.wallet_address
+        milestone.review_tx_hash = chain_action.review_tx_hash or milestone.review_tx_hash
+        milestone.chain_network = chain_action.chain_network or milestone.chain_network
+        milestone.chain_id = chain_action.chain_id or milestone.chain_id
+        milestone.chain_project_id = chain_action.chain_project_id or milestone.chain_project_id
+        milestone.chain_milestone_id = chain_action.chain_milestone_id or milestone.chain_milestone_id
+        milestone.contract_address = chain_action.contract_address or milestone.contract_address
+    
+    # Query fresh project from DB instead of using lazy-loaded relationship
+    project = db.query(Project).filter(Project.id == milestone.project_id).first()
+    refresh_project_status(project, db)
     db.commit()
     db.refresh(milestone)
     return milestone

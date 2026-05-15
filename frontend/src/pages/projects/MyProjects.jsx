@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectsAPI } from '../../services/api';
-import ProjectCard from '../../components/ProjectCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ProjectCard from '../../components/ProjectCard';
+import { projectsAPI } from '../../services/api';
 import './MyProjects.css';
 
 const MyProjects = () => {
@@ -45,7 +45,7 @@ const MyProjects = () => {
         </div>
       ) : (
         <div className="empty-state">
-          <p>📭 You haven't created any projects yet</p>
+          <p>You have not created any projects yet.</p>
           <button className="btn btn-primary" onClick={() => navigate('/projects/create')}>
             Create Your First Project
           </button>

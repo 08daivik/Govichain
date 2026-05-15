@@ -50,6 +50,137 @@
   margin: 0;
 }
 
+.chain-options-card {
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid #dbe7f3;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fbfdff 0%, #f8fafc 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.chain-options-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.chain-options-header div {
+  flex: 1;
+}
+
+.chain-options-header h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.chain-options-header p,
+.chain-help-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.chain-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  cursor: pointer;
+  padding: 8px 0;
+  transition: all 0.2s ease;
+}
+
+.chain-toggle:hover {
+  color: var(--primary-blue);
+}
+
+.chain-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-blue);
+}
+
+.chain-toggle input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.chain-wallet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+
+.chain-wallet-row .btn {
+  margin-bottom: 0;
+}
+
+.chain-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: grid;
+  gap: 6px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chain-note strong {
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chain-note span {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.chain-state {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.chain-state.connected {
+  background: #dcfce7;
+  color: #166534;
+  box-shadow: 0 1px 3px rgba(22, 101, 52, 0.1);
+}
+
+.chain-state.muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 .form-group {
   margin-bottom: 24px;
 }
@@ -219,5 +350,9 @@
 
   .info-card {
     position: static;
+  }
+
+  .chain-options-header {
+    flex-direction: column;
   }
 }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect,useCallback } from 'react';
-import { projectsAPI } from '../../services/api';
-import ProjectCard from '../../components/ProjectCard';
+import React, { useCallback, useEffect, useState } from 'react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ProjectCard from '../../components/ProjectCard';
+import { projectsAPI } from '../../services/api';
 import './ProjectsList.css';
 
 const ProjectsList = () => {
@@ -13,11 +13,13 @@ const ProjectsList = () => {
     try {
       setLoading(true);
       let response;
+
       if (filter === 'ALL') {
         response = await projectsAPI.getAll();
       } else {
         response = await projectsAPI.filterByStatus(filter);
       }
+
       setProjects(response.data);
     } catch (error) {
       console.error('Failed to load projects:', error);
@@ -36,7 +38,7 @@ const ProjectsList = () => {
         <h1>All Projects</h1>
         <div className="filter-controls">
           <label>Filter by Status:</label>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
             <option value="ALL">All Projects</option>
             <option value="CREATED">Created</option>
             <option value="IN_PROGRESS">In Progress</option>
@@ -55,7 +57,7 @@ const ProjectsList = () => {
         </div>
       ) : (
         <div className="empty-state">
-          <p>📭 No projects found</p>
+          <p>No projects found.</p>
         </div>
       )}
     </div>

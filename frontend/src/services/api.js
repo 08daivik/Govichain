@@ -59,9 +59,9 @@ export const milestonesAPI = {
   evaluate: (payload) => api.post('/milestones/evaluate', payload),
   getByProject: (projectId) => api.get(`/milestones/project/${projectId}`),
   getById: (id) => api.get(`/milestones/${id}`),
-  approve: (id) => api.put(`/milestones/${id}/approve`),
-  flag: (id) => api.put(`/milestones/${id}/flag`),
-  reject: (id) => api.put(`/milestones/${id}/reject`),
+  approve: (id, payload = {}) => api.put(`/milestones/${id}/approve`, payload),
+  flag: (id, payload = {}) => api.put(`/milestones/${id}/flag`, payload),
+  reject: (id, payload = {}) => api.put(`/milestones/${id}/reject`, payload),
   getMyMilestones: () => api.get('/milestones/my-milestones'),
   filterByStatus: (status) => api.get(`/milestones/filter/by-status?status=${status}`),
 };

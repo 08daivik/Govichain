@@ -4,7 +4,15 @@ import { projectsAPI, milestonesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import AIReportCard from '../../components/AIReportCard';
-import { formatCurrency, parseRuleList } from '../../utils/formatters';
+import {
+  formatCurrency,
+  formatEthEstimateFromInr,
+  getChainLabel,
+  getEthEstimateLabel,
+  getExplorerUrl,
+  parseRuleList,
+  shortenHash,
+} from '../../utils/formatters';
 import './ProjectDetails.css';
 
 const ProjectDetails = () => {
@@ -18,6 +26,7 @@ const ProjectDetails = () => {
   const [loading, setLoading] = useState(true);
   const [expandedMilestone, setExpandedMilestone] = useState(null);
   const [expandedDesc, setExpandedDesc] = useState({});
+  const [showBlockchainDetails, setShowBlockchainDetails] = useState(false);
 
   const loadProjectDetails = useCallback(async () => {
     try {
@@ -87,6 +96,76 @@ const ProjectDetails = () => {
         <p className="project-description">
           {project.description || 'No description provided'}
         </p>
+
+        <div className="blockchain-summary">
+          <div className="blockchain-summary-header">
+            <div className="blockchain-header-content">
+              <h3>Blockchain Record</h3>
+              <span className={`blockchain-pill ${project.on_chain_tx_hash ? 'live' : 'muted'}`}>
+                {project.on_chain_tx_hash ? 'Recorded on-chain' : 'Off-chain only'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="blockchain-toggle-btn"
+              onClick={() => setShowBlockchainDetails(!showBlockchainDetails)}
+              title={showBlockchainDetails ? 'Hide details' : 'Show details'}
+            >
+              <span className="toggle-icon">{showBlockchainDetails ? '−' : '+'}</span>
+            </button>
+          </div>
+
+          {showBlockchainDetails && (
+            <>
+              <div className="blockchain-grid">
+                <div className="meta-item">
+                  <span className="label">Network</span>
+                  <span className="value">{getChainLabel(project.chain_network, project.chain_id)}</span>
+                </div>
+                <div className="meta-item">
+                  <span className="label">Chain Project ID</span>
+                  <span className="value">{project.chain_project_id ?? '--'}</span>
+                </div>
+                <div className="meta-item">
+                  <span className="label">Demo Escrow</span>
+                  <span className="value">
+                    {project.on_chain_tx_hash ? formatEthEstimateFromInr(project.budget) : '--'}
+                  </span>
+                </div>
+                <div className="meta-item">
+                  <span className="label">Wallet</span>
+                  <span className="value">
+                    {project.wallet_address ? shortenHash(project.wallet_address, 8, 6) : '--'}
+                  </span>
+                </div>
+                <div className="meta-item blockchain-meta-wide">
+                  <span className="label">Transaction</span>
+                  {project.on_chain_tx_hash ? (
+                    getExplorerUrl(project.on_chain_tx_hash, project.chain_id) ? (
+                      <a
+                        href={getExplorerUrl(project.on_chain_tx_hash, project.chain_id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="chain-link"
+                      >
+                        {shortenHash(project.on_chain_tx_hash, 10, 8)}
+                      </a>
+                    ) : (
+                      <span className="value">{shortenHash(project.on_chain_tx_hash, 10, 8)}</span>
+                    )
+                  ) : (
+                    <span className="value">No on-chain transaction recorded</span>
+                  )}
+                </div>
+              </div>
+              <div className="blockchain-note">
+                <strong>{formatCurrency(project.budget)}</strong> remains the project budget in the app.
+                <span>{getEthEstimateLabel()} so project creation locks roughly {formatEthEstimateFromInr(project.budget)} as demo escrow when recorded on-chain.</span>
+                <span>Approved milestones release mapped portions of that escrow to the contractor. Flagged or rejected milestones do not release funds.</span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {projectRules.length > 0 && (
@@ -291,6 +370,10 @@ const ProjectDetails = () => {
                     {milestone.status}
                   </span>
 
+                  <span className={`mini-chain-pill ${milestone.submission_tx_hash ? 'live' : 'muted'}`}>
+                    {milestone.submission_tx_hash ? 'On-chain' : 'Off-chain'}
+                  </span>
+
                   {milestone.ai_report && (
                     <button
                       className="btn btn-outline"
@@ -307,6 +390,32 @@ const ProjectDetails = () => {
 
                 {expandedMilestone === milestone.id && (
                   <div className="ai-expanded">
+                    <div className="milestone-chain-details">
+                      <div>
+                        <strong>Submission Record</strong>
+                        <p>
+                          {milestone.submission_tx_hash
+                            ? 'Recorded on blockchain'
+                            : 'No on-chain submission record'}
+                        </p>
+                      </div>
+                      {milestone.submission_tx_hash && (
+                        getExplorerUrl(milestone.submission_tx_hash, milestone.chain_id) ? (
+                          <a
+                            href={getExplorerUrl(milestone.submission_tx_hash, milestone.chain_id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="chain-link"
+                          >
+                            {shortenHash(milestone.submission_tx_hash, 10, 8)}
+                          </a>
+                        ) : (
+                          <span className="chain-inline-hash">
+                            {shortenHash(milestone.submission_tx_hash, 10, 8)}
+                          </span>
+                        )
+                      )}
+                    </div>
                     <AIReportCard
                       report={milestone.ai_report}
                       score={milestone.ai_score}

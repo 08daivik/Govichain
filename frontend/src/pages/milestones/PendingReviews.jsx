@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { milestonesAPI } from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, shortenHash } from '../../utils/formatters';
 import './PendingReviews.css';
 
 const PendingReviews = () => {
@@ -47,6 +47,7 @@ const PendingReviews = () => {
                 <th>AI Score</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>On-chain</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -93,6 +94,10 @@ const PendingReviews = () => {
                     <span className={`status-badge ${milestone.status.toLowerCase()}`}>
                       {milestone.status}
                     </span>
+                  </td>
+
+                  <td>
+                    {milestone.submission_tx_hash ? shortenHash(milestone.submission_tx_hash) : '--'}
                   </td>
 
                   <td>

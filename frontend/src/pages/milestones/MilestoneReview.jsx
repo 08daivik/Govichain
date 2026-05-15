@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useWallet } from '../../context/WalletContext';
 import { milestonesAPI, projectsAPI } from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import AIReportCard from '../../components/AIReportCard';
-import { formatCurrency } from '../../utils/formatters';
+import {
+  formatCurrency,
+  formatEthEstimateFromInr,
+  getEthEstimateLabel,
+  getChainLabel,
+  getExplorerUrl,
+  shortenHash,
+} from '../../utils/formatters';
+import {
+  approveMilestoneOnChain,
+  flagMilestoneOnChain,
+  rejectMilestoneOnChain,
+} from '../../services/web3Service';
 import './MilestoneReview.css';
 
 const AIRecommendationCard = ({ report }) => {
@@ -40,6 +53,7 @@ const AIRecommendationCard = ({ report }) => {
 const MilestoneReview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { account, chainInfo, connectWallet, isWalletAvailable, isContractConfigured } = useWallet();
 
   const [milestone, setMilestone] = useState(null);
   const [project, setProject] = useState(null);
@@ -47,6 +61,7 @@ const MilestoneReview = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [showAIReport, setShowAIReport] = useState(false);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [recordReviewOnChain, setRecordReviewOnChain] = useState(false);
 
   const loadMilestoneDetails = useCallback(async () => {
     try {
@@ -67,47 +82,66 @@ const MilestoneReview = () => {
     loadMilestoneDetails();
   }, [loadMilestoneDetails]);
 
-  const handleApprove = async () => {
-    if (!window.confirm('Are you sure you want to approve this milestone?')) return;
+  const runReviewAction = async (actionName, onChainFn, apiFn, successMessage) => {
+    if (!window.confirm(`Are you sure you want to ${actionName.toLowerCase()} this milestone?`)) {
+      return;
+    }
+
     try {
       setActionLoading(true);
-      await milestonesAPI.approve(id);
-      alert('Milestone approved successfully.');
+      let payload = {};
+
+      if (recordReviewOnChain) {
+        if (!milestone.chain_milestone_id) {
+          throw new Error('This milestone is not recorded on blockchain yet.');
+        }
+        if (!account) {
+          const connected = await connectWallet();
+          if (!connected) {
+            throw new Error('Connect your wallet before recording this review on-chain.');
+          }
+        }
+        if (!isContractConfigured) {
+          throw new Error('Contract address is not configured yet.');
+        }
+
+        const chainMeta = await onChainFn(milestone.chain_milestone_id);
+        payload = {
+          wallet_address: chainMeta.walletAddress,
+          review_tx_hash: chainMeta.txHash,
+          chain_network: chainMeta.chainNetwork,
+          chain_id: chainMeta.chainId,
+          chain_project_id: milestone.chain_project_id || chainMeta.chainProjectId,
+          chain_milestone_id: milestone.chain_milestone_id || chainMeta.chainMilestoneId,
+          contract_address: chainMeta.contractAddress,
+        };
+      }
+
+      await apiFn(id, payload);
+      alert(successMessage);
       navigate('/milestones/pending');
     } catch (error) {
-      alert('Approval failed. Please try again.');
+      alert(error?.message || 'Review action failed. Please try again.');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleFlag = async () => {
-    if (!window.confirm('Are you sure you want to flag this milestone as suspicious?')) return;
-    try {
-      setActionLoading(true);
-      await milestonesAPI.flag(id);
-      alert('Milestone flagged successfully.');
-      navigate('/milestones/pending');
-    } catch (error) {
-      alert('Action failed. Please try again.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleApprove = async () =>
+    runReviewAction(
+      'Approve',
+      approveMilestoneOnChain,
+      milestonesAPI.approve,
+      recordReviewOnChain
+        ? `Milestone approved and approximately ${formatEthEstimateFromInr(milestone.requested_amount)} released to the contractor on-chain.`
+        : 'Milestone approved successfully.'
+    );
 
-  const handleReject = async () => {
-    if (!window.confirm('Are you sure you want to reject this milestone?')) return;
-    try {
-      setActionLoading(true);
-      await milestonesAPI.reject(id);
-      alert('Milestone rejected successfully.');
-      navigate('/milestones/pending');
-    } catch (error) {
-      alert('Rejection failed. Please try again.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleFlag = async () =>
+    runReviewAction('Flag', flagMilestoneOnChain, milestonesAPI.flag, 'Milestone flagged successfully.');
+
+  const handleReject = async () =>
+    runReviewAction('Reject', rejectMilestoneOnChain, milestonesAPI.reject, 'Milestone rejected successfully.');
 
   if (loading) return <LoadingSpinner message="Fetching milestone details..." />;
   if (!milestone) return <div className="error-state">Milestone not found.</div>;
@@ -190,6 +224,56 @@ const MilestoneReview = () => {
                 </div>
               </div>
             )}
+
+            <div className="project-sub-section">
+              <h3 className="sub-section-title">Blockchain Record</h3>
+              <div className="info-grid">
+                <div className="info-item">
+                  <label>Submission Status</label>
+                  <p>{milestone.submission_tx_hash ? 'Recorded on blockchain' : 'Off-chain only'}</p>
+                </div>
+                <div className="info-item">
+                  <label>Network</label>
+                  <p>{getChainLabel(milestone.chain_network, milestone.chain_id)}</p>
+                </div>
+                <div className="info-item full-width">
+                  <label>Submission Transaction</label>
+                  {milestone.submission_tx_hash ? (
+                    getExplorerUrl(milestone.submission_tx_hash, milestone.chain_id) ? (
+                      <a
+                        href={getExplorerUrl(milestone.submission_tx_hash, milestone.chain_id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="chain-link"
+                      >
+                        {shortenHash(milestone.submission_tx_hash, 10, 8)}
+                      </a>
+                    ) : (
+                      <p>{shortenHash(milestone.submission_tx_hash, 10, 8)}</p>
+                    )
+                  ) : (
+                    <p>No on-chain submission record</p>
+                  )}
+                </div>
+                {milestone.review_tx_hash && (
+                  <div className="info-item full-width">
+                    <label>Latest Review Transaction</label>
+                    {getExplorerUrl(milestone.review_tx_hash, milestone.chain_id) ? (
+                      <a
+                        href={getExplorerUrl(milestone.review_tx_hash, milestone.chain_id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="chain-link"
+                      >
+                        {shortenHash(milestone.review_tx_hash, 10, 8)}
+                      </a>
+                    ) : (
+                      <p>{shortenHash(milestone.review_tx_hash, 10, 8)}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -242,6 +326,48 @@ const MilestoneReview = () => {
               <li>Validate amount against budget</li>
               <li>Check for regulatory compliance</li>
             </ul>
+          </div>
+
+          <div className="chain-review-box">
+            <div className="chain-review-header">
+              <strong>Blockchain Review Recording</strong>
+              <span className={`chain-state ${milestone.chain_milestone_id ? 'connected' : 'muted'}`}>
+                {milestone.chain_milestone_id ? 'Milestone linked on-chain' : 'Off-chain milestone'}
+              </span>
+            </div>
+
+            <label className="chain-toggle">
+              <input
+                type="checkbox"
+                checked={recordReviewOnChain}
+                onChange={(event) => setRecordReviewOnChain(event.target.checked)}
+                disabled={!milestone.chain_milestone_id || !isWalletAvailable || !isContractConfigured}
+              />
+              <span>Record this review decision on blockchain</span>
+            </label>
+
+            {isWalletAvailable && !account && (
+              <div className="chain-wallet-row">
+                <button type="button" className="btn btn-outline" onClick={connectWallet}>
+                  Connect Wallet
+                </button>
+                <span className="chain-help-text">
+                  Wallet is only needed if you choose to record the review on-chain.
+                </span>
+              </div>
+            )}
+
+            {account && (
+              <p className="chain-help-text">
+                Connected to {chainInfo?.networkName || 'wallet network'} as {account.slice(0, 6)}...{account.slice(-4)}.
+              </p>
+            )}
+
+            <div className="chain-note">
+              <strong>Approving this milestone can release {formatEthEstimateFromInr(milestone.requested_amount)} to the contractor from project escrow.</strong>
+              <span>{getEthEstimateLabel()} is used only for demo conversion. The official project and milestone values remain in rupees.</span>
+              <span>Flagging or rejecting keeps the escrow locked. The auditor signs the release decision but does not pay from their own wallet.</span>
+            </div>
           </div>
 
           <div className="ai-integration-box">

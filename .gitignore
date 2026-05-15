@@ -31,3 +31,10 @@ Thumbs.db
 # VS Code
 # ==============================
 .vscode/
+
+# Blockchain
+blockchain/node_modules/
+blockchain/.env
+blockchain/.env.local
+blockchain/artifacts/
+blockchain/cache/

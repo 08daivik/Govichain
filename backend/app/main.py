@@ -2,6 +2,7 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect
 from sqlalchemy import text
 
 from .database import Base, engine
@@ -14,6 +15,47 @@ app = FastAPI(
 )
 
 
+BLOCKCHAIN_COLUMN_MIGRATIONS = {
+    "projects": {
+        "wallet_address": "VARCHAR(255)",
+        "on_chain_tx_hash": "VARCHAR(255)",
+        "chain_network": "VARCHAR(100)",
+        "chain_id": "INTEGER",
+        "chain_project_id": "INTEGER",
+        "contract_address": "VARCHAR(255)",
+    },
+    "milestones": {
+        "wallet_address": "VARCHAR(255)",
+        "submission_tx_hash": "VARCHAR(255)",
+        "review_tx_hash": "VARCHAR(255)",
+        "chain_network": "VARCHAR(100)",
+        "chain_id": "INTEGER",
+        "chain_project_id": "INTEGER",
+        "chain_milestone_id": "INTEGER",
+        "contract_address": "VARCHAR(255)",
+        "description_hash": "VARCHAR(255)",
+    },
+}
+
+
+def run_column_migrations() -> None:
+    inspector = inspect(engine)
+
+    with engine.begin() as connection:
+        for table_name, columns in BLOCKCHAIN_COLUMN_MIGRATIONS.items():
+            existing_columns = {
+                column["name"]
+                for column in inspector.get_columns(table_name)
+            }
+            for column_name, column_type in columns.items():
+                if column_name in existing_columns:
+                    continue
+                connection.execute(
+                    text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                )
+                print(f"Added column {table_name}.{column_name}")
+
+
 @app.on_event("startup")
 def startup_event():
     try:
@@ -24,6 +66,8 @@ def startup_event():
 
         Base.metadata.create_all(bind=engine)
         print("Database tables verified/created")
+        run_column_migrations()
+        print("Database optional columns verified")
 
     except Exception as exc:
         print("\nERROR: Cannot connect to PostgreSQL database.")

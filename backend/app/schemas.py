@@ -46,7 +46,12 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    pass
+    wallet_address: Optional[str] = None
+    on_chain_tx_hash: Optional[str] = None
+    chain_network: Optional[str] = None
+    chain_id: Optional[int] = None
+    chain_project_id: Optional[int] = None
+    contract_address: Optional[str] = None
 
 
 class ProjectResponse(ProjectBase):
@@ -54,6 +59,12 @@ class ProjectResponse(ProjectBase):
     status: ProjectStatus
     creator_id: int
     compliance_rules: Optional[str]
+    wallet_address: Optional[str] = None
+    on_chain_tx_hash: Optional[str] = None
+    chain_network: Optional[str] = None
+    chain_id: Optional[int] = None
+    chain_project_id: Optional[int] = None
+    contract_address: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -73,6 +84,14 @@ class MilestoneBase(BaseModel):
 
 class MilestoneCreate(MilestoneBase):
     project_id: int
+    wallet_address: Optional[str] = None
+    submission_tx_hash: Optional[str] = None
+    chain_network: Optional[str] = None
+    chain_id: Optional[int] = None
+    chain_project_id: Optional[int] = None
+    chain_milestone_id: Optional[int] = None
+    contract_address: Optional[str] = None
+    description_hash: Optional[str] = None
 
 
 class MilestoneResponse(MilestoneBase):
@@ -81,6 +100,15 @@ class MilestoneResponse(MilestoneBase):
     status: MilestoneStatus
     contractor_id: int
     auditor_id: Optional[int]
+    wallet_address: Optional[str] = None
+    submission_tx_hash: Optional[str] = None
+    review_tx_hash: Optional[str] = None
+    chain_network: Optional[str] = None
+    chain_id: Optional[int] = None
+    chain_project_id: Optional[int] = None
+    chain_milestone_id: Optional[int] = None
+    contract_address: Optional[str] = None
+    description_hash: Optional[str] = None
     created_at: datetime
     approved_at: Optional[datetime]
     ai_score: Optional[float] = None
@@ -99,3 +127,13 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
     role: Optional[UserRole] = None
+
+
+class MilestoneChainAction(BaseModel):
+    wallet_address: Optional[str] = None
+    review_tx_hash: Optional[str] = None
+    chain_network: Optional[str] = None
+    chain_id: Optional[int] = None
+    chain_project_id: Optional[int] = None
+    chain_milestone_id: Optional[int] = None
+    contract_address: Optional[str] = None

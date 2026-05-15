@@ -55,9 +55,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (onLogout) => {
     localStorage.removeItem('token');
     setUser(null);
+    // Call the optional disconnect callback
+    if (onLogout) {
+      onLogout();
+    }
   };
 
   return (

@@ -1,14 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useWallet } from '../context/WalletContext';
 import './Navbar.css';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { account, chainInfo, connectWallet, disconnectWallet, isWalletAvailable } = useWallet();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    logout(disconnectWallet);
     navigate('/login');
   };
 
@@ -37,6 +39,23 @@ const Navbar = () => {
                 {user.role}
               </span>
             </div>
+            {isWalletAvailable ? (
+              account ? (
+                <div className="wallet-chip">
+                  <span className="wallet-label">Wallet</span>
+                  <strong>{account.slice(0, 6)}...{account.slice(-4)}</strong>
+                  {chainInfo?.networkName && (
+                    <span className="wallet-network">{chainInfo.networkName}</span>
+                  )}
+                </div>
+              ) : (
+                <button onClick={connectWallet} className="btn btn-wallet">
+                  Connect Wallet
+                </button>
+              )
+            ) : (
+              <span className="wallet-missing">Wallet unavailable</span>
+            )}
             <button onClick={handleLogout} className="btn btn-outline">
               Logout
             </button>

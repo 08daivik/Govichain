@@ -60,3 +60,36 @@
   background: white;
   color: var(--dark-navy);
 }
+
+.btn-wallet {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-wallet:hover {
+  background: #e2e8f0;
+}
+
+.wallet-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 130px;
+}
+
+.wallet-label,
+.wallet-network,
+.wallet-missing {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.wallet-missing {
+  padding: 8px 0;
+}

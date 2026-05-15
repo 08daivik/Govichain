@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useWallet } from '../../context/WalletContext';
 import { projectsAPI } from '../../services/api';
-import { parseRuleList } from '../../utils/formatters';
+import { createProjectOnChain } from '../../services/web3Service';
+import {
+  formatCurrency,
+  formatEthEstimateFromInr,
+  getEthEstimateLabel,
+  parseRuleList,
+} from '../../utils/formatters';
 import './CreateProject.css';
 
 const CreateProject = () => {
   const navigate = useNavigate();
+  const { account, chainInfo, connectWallet, isWalletAvailable, isContractConfigured } = useWallet();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -15,8 +23,11 @@ const CreateProject = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [generatedRules, setGeneratedRules] = useState('');
+  const [recordOnChain, setRecordOnChain] = useState(false);
 
   const rulesList = parseRuleList(generatedRules);
+  const budgetValue = parseFloat(formData.budget);
+  const hasBudgetValue = Number.isFinite(budgetValue) && budgetValue > 0;
 
   const handleChange = (e) => {
     setFormData({
@@ -32,9 +43,33 @@ const CreateProject = () => {
     setError('');
 
     try {
+      const budgetValue = parseFloat(formData.budget);
+      let chainMeta = null;
+
+      if (recordOnChain) {
+        if (!account) {
+          const connected = await connectWallet();
+          if (!connected) {
+            throw new Error('Connect your wallet before recording this project on-chain.');
+          }
+        }
+
+        if (!isContractConfigured) {
+          throw new Error('Contract address is not configured yet.');
+        }
+
+        chainMeta = await createProjectOnChain(formData.name, budgetValue);
+      }
+
       const projectData = {
         ...formData,
-        budget: parseFloat(formData.budget),
+        budget: budgetValue,
+        wallet_address: chainMeta?.walletAddress || null,
+        on_chain_tx_hash: chainMeta?.txHash || null,
+        chain_network: chainMeta?.chainNetwork || null,
+        chain_id: chainMeta?.chainId || null,
+        chain_project_id: chainMeta?.chainProjectId || null,
+        contract_address: chainMeta?.contractAddress || null,
       };
 
       const res = await projectsAPI.create(projectData);
@@ -43,7 +78,11 @@ const CreateProject = () => {
         res.data?.project?.compliance_rules;
 
       setGeneratedRules(rules || '');
-      alert('Project created successfully.');
+      alert(
+        recordOnChain
+          ? `Project created and blockchain escrow locked at approximately ${formatEthEstimateFromInr(budgetValue)}.`
+          : 'Project created successfully.'
+      );
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create project');
     } finally {
@@ -68,6 +107,65 @@ const CreateProject = () => {
               <p>{error}</p>
             </div>
           )}
+
+          <div className="chain-options-card">
+            <div className="chain-options-header">
+              <div>
+                <h3>Blockchain Recording</h3>
+                <p>Keep the budget in rupees and optionally lock a demo ETH escrow on-chain.</p>
+              </div>
+              {account ? (
+                <span className="chain-state connected">Wallet connected</span>
+              ) : (
+                <span className="chain-state muted">Optional</span>
+              )}
+            </div>
+
+            <label className="chain-toggle">
+              <input
+                type="checkbox"
+                checked={recordOnChain}
+                onChange={(event) => setRecordOnChain(event.target.checked)}
+                disabled={!isWalletAvailable || !isContractConfigured}
+              />
+              <span>Record this project on blockchain</span>
+            </label>
+
+            {!isWalletAvailable && (
+              <p className="chain-help-text">Wallet integration is unavailable in this browser.</p>
+            )}
+
+            {isWalletAvailable && !account && (
+              <div className="chain-wallet-row">
+                <button type="button" className="btn btn-outline" onClick={connectWallet}>
+                  Connect Wallet
+                </button>
+                <span className="chain-help-text">
+                  Wallet is only needed if you choose to record this project on-chain.
+                </span>
+              </div>
+            )}
+
+            {account && (
+              <p className="chain-help-text">
+                Connected to {chainInfo?.networkName || 'wallet network'} as {account.slice(0, 6)}...{account.slice(-4)}.
+              </p>
+            )}
+
+            {recordOnChain && hasBudgetValue && (
+              <div className="chain-note">
+                <strong>{formatCurrency(budgetValue)}</strong> stays the official project budget in the app.
+                <span>{getEthEstimateLabel()} so project creation will lock roughly {formatEthEstimateFromInr(budgetValue)} from the connected government wallet as demo escrow.</span>
+                <span>Approved milestones later release portions of that escrow to the contractor.</span>
+              </div>
+            )}
+
+            {!isContractConfigured && (
+              <p className="chain-help-text">
+                Contract address is not configured yet, so on-chain recording is currently disabled.
+              </p>
+            )}
+          </div>
 
           <div className="form-group">
             <label>Project Name *</label>
@@ -151,6 +249,8 @@ const CreateProject = () => {
             <li>Set a realistic budget allocation</li>
             <li>Projects start with "CREATED" status</li>
             <li>AI will generate compliance rules automatically</li>
+            <li>Blockchain recording is optional and keeps the rupee budget as the source of truth</li>
+            <li>When enabled, a mapped demo ETH escrow is locked from the government wallet</li>
           </ul>
         </div>
       </div>

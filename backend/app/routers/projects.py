@@ -39,7 +39,13 @@ def create_project(
         budget=project.budget,
         creator_id=current_user.id,
         status=ProjectStatus.CREATED,
-        compliance_rules=rules
+        compliance_rules=rules,
+        wallet_address=project.wallet_address,
+        on_chain_tx_hash=project.on_chain_tx_hash,
+        chain_network=project.chain_network,
+        chain_id=project.chain_id,
+        chain_project_id=project.chain_project_id,
+        contract_address=project.contract_address,
     )
 
     db.add(new_project)

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { milestonesAPI } from '../../services/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, shortenHash } from '../../utils/formatters';
 import './MyMilestones.css';
 
 const MyMilestones = () => {
@@ -60,6 +60,7 @@ const MyMilestones = () => {
                 <th>AI Score</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>On-chain</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -97,6 +98,7 @@ const MyMilestones = () => {
                       {milestone.status}
                     </span>
                   </td>
+                  <td>{milestone.submission_tx_hash ? shortenHash(milestone.submission_tx_hash) : '--'}</td>
                   <td>{new Date(milestone.created_at).toLocaleDateString()}</td>
                   <td>
                     <button
