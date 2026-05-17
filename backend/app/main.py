@@ -6,7 +6,7 @@ from sqlalchemy import inspect
 from sqlalchemy import text
 
 from .database import Base, engine
-from .routers import auth, dashboard, milestone, milestones, projects, users
+from .routers import auth, dashboard, milestone, milestones, projects, users, public
 
 app = FastAPI(
     title="Govichain API",
@@ -91,6 +91,7 @@ app.include_router(milestones.router)
 app.include_router(users.router)
 app.include_router(dashboard.router)
 app.include_router(milestone.router)
+app.include_router(public.router)
 
 
 @app.get("/")

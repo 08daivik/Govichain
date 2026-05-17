@@ -78,4 +78,7 @@ export const usersAPI = {
   getById: (id) => api.get(`/users/${id}`),
 };
 
+// Export api instance for public endpoints (no auth required)
+export const apiClient = api;
+
 export default api;

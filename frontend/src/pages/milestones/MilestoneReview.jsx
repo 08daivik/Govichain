@@ -50,6 +50,31 @@ const AIRecommendationCard = ({ report }) => {
   );
 };
 
+const getFriendlyReviewError = (error) => {
+  const rawMessage = [
+    error?.reason,
+    error?.shortMessage,
+    error?.message,
+    error?.info?.error?.message,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (rawMessage.includes('Only flagged milestones can be rejected')) {
+    return 'Blockchain rejected this action because this milestone was not flagged on-chain first. Uncheck "Record this review decision on blockchain" to reject it in the app, or flag it on-chain before rejecting on-chain.';
+  }
+
+  if (rawMessage.includes('user rejected') || rawMessage.includes('User denied')) {
+    return 'Wallet transaction was cancelled.';
+  }
+
+  if (rawMessage.includes('insufficient funds')) {
+    return 'The connected wallet does not have enough funds for gas.';
+  }
+
+  return error?.message || 'Review action failed. Please try again.';
+};
+
 const MilestoneReview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -121,7 +146,7 @@ const MilestoneReview = () => {
       alert(successMessage);
       navigate('/milestones/pending');
     } catch (error) {
-      alert(error?.message || 'Review action failed. Please try again.');
+      alert(getFriendlyReviewError(error));
     } finally {
       setActionLoading(false);
     }
@@ -140,9 +165,6 @@ const MilestoneReview = () => {
   const handleFlag = async () =>
     runReviewAction('Flag', flagMilestoneOnChain, milestonesAPI.flag, 'Milestone flagged successfully.');
 
-  const handleReject = async () =>
-    runReviewAction('Reject', rejectMilestoneOnChain, milestonesAPI.reject, 'Milestone rejected successfully.');
-
   if (loading) return <LoadingSpinner message="Fetching milestone details..." />;
   if (!milestone) return <div className="error-state">Milestone not found.</div>;
 
@@ -150,6 +172,19 @@ const MilestoneReview = () => {
   const canFlag = milestone.status === 'PENDING';
   const canReject = milestone.status === 'FLAGGED';
   const isCompletedReview = ['APPROVED', 'REJECTED'].includes(milestone.status);
+  const wasFlaggedOnChain = Boolean(milestone.review_tx_hash);
+  const canRejectOnChain = canReject && wasFlaggedOnChain;
+
+  const handleReject = async () => {
+    if (recordReviewOnChain && !canRejectOnChain) {
+      alert(
+        'This milestone was flagged in the app, but it was not flagged on-chain. Uncheck blockchain recording to reject it in the app, or flag it on-chain before rejecting on-chain.'
+      );
+      return;
+    }
+
+    return runReviewAction('Reject', rejectMilestoneOnChain, milestonesAPI.reject, 'Milestone rejected successfully.');
+  };
 
   return (
     <div className="milestone-review-page">
@@ -307,7 +342,7 @@ const MilestoneReview = () => {
                 <button
                   className="btn btn-danger btn-full"
                   onClick={handleReject}
-                  disabled={actionLoading}
+                  disabled={actionLoading || (recordReviewOnChain && !canRejectOnChain)}
                 >
                   Reject Milestone
                 </button>
@@ -367,6 +402,11 @@ const MilestoneReview = () => {
               <strong>Approving this milestone can release {formatEthEstimateFromInr(milestone.requested_amount)} to the contractor from project escrow.</strong>
               <span>{getEthEstimateLabel()} is used only for demo conversion. The official project and milestone values remain in rupees.</span>
               <span>Flagging or rejecting keeps the escrow locked. The auditor signs the release decision but does not pay from their own wallet.</span>
+              {canReject && !canRejectOnChain && (
+                <span className="chain-warning-text">
+                  This milestone is flagged in the app, but not on-chain. Keep blockchain recording off to reject it here.
+                </span>
+              )}
             </div>
           </div>
 

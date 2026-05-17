@@ -370,3 +370,12 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+.chain-note .chain-warning-text {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+  font-weight: 700;
+}

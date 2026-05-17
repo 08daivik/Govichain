@@ -137,3 +137,9 @@ class MilestoneChainAction(BaseModel):
     chain_project_id: Optional[int] = None
     chain_milestone_id: Optional[int] = None
     contract_address: Optional[str] = None
+
+class ProjectDetailResponse(ProjectResponse):
+    milestones: List[MilestoneResponse] = []
+
+    class Config:
+        from_attributes = True

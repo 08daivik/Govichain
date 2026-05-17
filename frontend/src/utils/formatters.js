@@ -4,6 +4,32 @@ export const formatCurrency = (amount) => {
   return `Rs. ${rounded.toLocaleString('en-IN')}`;
 };
 
+export const formatCompactCurrency = (amount) => {
+  const numeric = Number(amount ?? 0);
+  if (!Number.isFinite(numeric)) {
+    return 'Rs 0';
+  }
+
+  const absolute = Math.abs(numeric);
+  const sign = numeric < 0 ? '-' : '';
+  const formatValue = (value) => {
+    const fixed = value >= 100 ? value.toFixed(0) : value.toFixed(2);
+    return fixed.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  };
+
+  if (absolute >= 10000000) {
+    return `${sign}Rs ${formatValue(absolute / 10000000)} cr`;
+  }
+  if (absolute >= 100000) {
+    return `${sign}Rs ${formatValue(absolute / 100000)} L`;
+  }
+  if (absolute >= 1000) {
+    return `${sign}Rs ${formatValue(absolute / 1000)} K`;
+  }
+
+  return `${sign}Rs ${Math.round(absolute).toLocaleString('en-IN')}`;
+};
+
 const DEMO_INR_PER_ETH = Number(process.env.REACT_APP_DEMO_INR_PER_ETH || 5000000);
 
 export const formatEthEstimateFromInr = (amount) => {

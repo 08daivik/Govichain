@@ -11,7 +11,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout(disconnectWallet);
-    navigate('/login');
+    navigate('/', { replace: true });
   };
 
   const getRoleBadge = (role) => {

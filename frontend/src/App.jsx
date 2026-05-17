@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { WalletProvider } from './context/WalletContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import GovernmentDashboard from './pages/dashboards/GovernmentDashboard';
@@ -17,6 +18,8 @@ import CreateMilestone from './pages/milestones/CreateMilestone';
 import MyMilestones from './pages/milestones/MyMilestones';
 import PendingReviews from './pages/milestones/PendingReviews';
 import MilestoneReview from './pages/milestones/MilestoneReview';
+import PublicDashboard from './pages/public/PublicDashboard';
+import PublicProjectDetail from './pages/public/PublicProjectDetail';
 import './App.css';
 
 // Protected Route Component
@@ -72,11 +75,14 @@ function App() {
       <WalletProvider>
         <Router>
           <Routes>
-            {/* Public Routes */}
+            {/* Public Routes - No Auth Required */}
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/public" element={<PublicDashboard />} />
+            <Route path="/public/projects/:projectId" element={<PublicProjectDetail />} />
 
-          {/* Protected Routes */}
+            {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -178,8 +184,8 @@ function App() {
             }
           />
 
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            {/* Redirect unknown routes to root */}
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
       </WalletProvider>
